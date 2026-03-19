@@ -1,0 +1,47 @@
+export type Role = 'user' | 'admin' | 'doctor';
+
+export interface User {
+  id: number;
+  name: string;
+  username: string;
+  password?: string;
+  email: string;
+  phone: string;
+  walletBalance: number;
+}
+
+export interface Doctor {
+  id: number;
+  name: string;
+  username: string;
+  password?: string;
+  specialization: string;
+  phone: string;
+  appointmentFee: number;
+  shiftStart: string;
+  shiftEnd: string;
+  lunchStart: string;
+  lunchEnd: string;
+}
+
+export interface Appointment {
+  id: number;
+  userId: number;
+  doctorId: number;
+  date: string;
+  time: string;
+  status: 'pending' | 'confirmed' | 'rescheduled' | 'completed' | 'noShow';
+  reason: string;
+  duration: number;
+  notes: string;
+}
+
+export interface PaymentRequest {
+  id: number;
+  userId: number;
+  amount: number;
+  method: string;
+  utr: string;
+  status: 'pending' | 'approved' | 'rejected';
+  timestamp: string;
+}

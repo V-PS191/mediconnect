@@ -1,0 +1,33 @@
+# Project Tags: Appointment Booking System (MediConnect)
+
+## Core Technologies
+- HTML5
+- CSS3
+- JavaScript (ES6+)
+- React.js
+- Tailwind CSS
+
+## Backend & Database
+- Supabase
+- PostgreSQL
+- Edge Functions (Deno)
+- TypeScript
+- Row Level Security (RLS)
+- pg_cron
+
+## Web Capabilities
+- Service Workers
+- Cache API
+- IndexedDB
+- PWA (Progressive Web App)
+- Offline-First
+
+## Key Features
+- Appointment Scheduling
+- Slot Validation
+- Real-time Updates
+- Admin Dashboard
+- Patient Management
+- Doctor Portal
+- Queue Management
+- Wallet Integration
