@@ -26,6 +26,7 @@ const UserPanel: React.FC<UserPanelProps> = ({
 }) => {
   const [currentView, setCurrentView] = useState<ViewState>('book');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [reportFile, setReportFile] = useState<File | null>(null);
 
   const [bookingData, setBookingData] = useState({
     doctorId: '',
@@ -107,10 +108,11 @@ const UserPanel: React.FC<UserPanelProps> = ({
       status: 'pending',
       reason: bookingData.reason,
       duration: 30,
-      notes: ''
+      notes: reportFile ? `Attached report: ${reportFile.name}` : ''
     };
     onBookAppointment(newApt);
     setBookingData({ doctorId: '', date: '', time: '', reason: '' });
+    setReportFile(null);
     setCurrentView('upcoming'); // Redirect to upcoming after booking
   };
 
@@ -343,9 +345,17 @@ const UserPanel: React.FC<UserPanelProps> = ({
                   <textarea
                     value={bookingData.reason}
                     onChange={(e) => setBookingData({ ...bookingData, reason: e.target.value })}
-                    className="w-full p-4 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-indigo-500 h-28 bg-gray-50 resize-none"
+                    className="w-full p-4 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-indigo-500 h-28 bg-gray-50 resize-none mb-6"
                     placeholder="Describe your symptoms..."
                     required
+                  />
+
+                  <label className="block text-sm font-medium text-gray-600 mb-2">Attach Medical Report (PDF, Optional)</label>
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    onChange={(e) => setReportFile(e.target.files?.[0] || null)}
+                    className="w-full p-3 rounded-2xl border border-gray-200 outline-none focus:ring-2 focus:ring-indigo-500 bg-gray-50 text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-white file:text-indigo-600 hover:file:bg-indigo-50 file:border file:border-indigo-100 transition-colors cursor-pointer"
                   />
                 </div>
 
@@ -377,7 +387,7 @@ const UserPanel: React.FC<UserPanelProps> = ({
               </div>
 
               <form onSubmit={handleWalletSubmit} className="space-y-4 pt-6 border-t border-white/10 relative z-10">
-                <p className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-2">Request Top Up</p>
+                <p className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-2">Add Money Directly</p>
                 <div className="grid grid-cols-1 gap-3">
                   <input
                     type="number"
@@ -400,9 +410,27 @@ const UserPanel: React.FC<UserPanelProps> = ({
                   type="submit"
                   className="w-full py-3 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold transition-all shadow-md hover:shadow-indigo-500/30 active:scale-95 mt-2"
                 >
-                  Submit Request
+                  Add Money
                 </button>
               </form>
+
+              <div className="mt-6 pt-5 border-t border-white/10 relative z-10 text-xs">
+                <p className="font-bold text-indigo-300 uppercase tracking-widest mb-3 flex items-center gap-1"><span>🏦</span> Transfer Details</p>
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-indigo-100 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="opacity-80">Holder</span>
+                    <span className="font-bold text-white">MediConnect Ltd</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="opacity-80">A/C No.</span>
+                    <span className="font-mono font-bold text-indigo-300">50200012345678</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="opacity-80">IFSC</span>
+                    <span className="font-mono font-bold text-indigo-300">HDFC0001234</span>
+                  </div>
+                </div>
+              </div>
             </section>
           </div>
         )}
@@ -429,7 +457,7 @@ const UserPanel: React.FC<UserPanelProps> = ({
               </div>
 
               <form onSubmit={handleWalletSubmit} className="space-y-4 pt-8 border-t border-white/10 relative z-10">
-                <p className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-4">Request Top Up</p>
+                <p className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-4">Add Money Directly</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <input
                     type="number"
@@ -452,9 +480,32 @@ const UserPanel: React.FC<UserPanelProps> = ({
                   type="submit"
                   className="w-full py-4 rounded-2xl bg-indigo-500 hover:bg-indigo-400 text-white font-bold transition-all text-lg shadow-lg hover:shadow-indigo-500/30 active:scale-95 mt-4"
                 >
-                  Submit Top Up Request
+                  Add Money to Wallet
                 </button>
               </form>
+              
+              <div className="mt-8 pt-8 border-t border-white/10 relative z-10">
+                <p className="text-sm font-bold text-indigo-300 uppercase tracking-widest mb-4 flex items-center gap-2"><span className="text-xl">🏦</span> Bank Transfer Details</p>
+                <div className="bg-white/5 border border-white/10 rounded-2xl p-6 text-indigo-100 space-y-3">
+                  <div className="flex justify-between items-center border-b border-white/5 pb-3">
+                    <span className="text-sm opacity-80">Account Holder Name</span>
+                    <span className="font-bold text-white tracking-wide">MediConnect Pvt Ltd</span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-white/5 pb-3">
+                    <span className="text-sm opacity-80">Bank Name</span>
+                    <span className="font-bold text-white tracking-wide">HDFC Bank</span>
+                  </div>
+                  <div className="flex justify-between items-center border-b border-white/5 pb-3">
+                    <span className="text-sm opacity-80">Account Number</span>
+                    <span className="font-mono font-bold text-indigo-300 tracking-wider">50200012345678</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm opacity-80">IFSC Code</span>
+                    <span className="font-mono font-bold text-indigo-300 tracking-wider">HDFC0001234</span>
+                  </div>
+                </div>
+                <p className="text-xs text-indigo-300/60 mt-4 italic text-center">Please transfer the amount to the above account and then enter the resulting UTR number to instantly add balance.</p>
+              </div>
             </section>
 
             <section className="bg-white rounded-[2.5rem] p-10 shadow-xl border border-gray-100">

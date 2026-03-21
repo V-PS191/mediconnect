@@ -61,10 +61,24 @@ export const useAppState = () => {
         amount,
         method: 'online',
         utr,
-        status: 'pending',
+        status: 'approved',
         timestamp: new Date().toLocaleString()
       };
       setPaymentRequests([...paymentRequests, newRequest]);
+
+      const updatedUser = { ...currentUser as User, walletBalance: (currentUser as User).walletBalance + amount };
+      setCurrentUser(updatedUser);
+      setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+
+      const newTx: Transaction = {
+        id: Date.now() + 1,
+        userId: updatedUser.id,
+        type: 'credit',
+        amount: amount,
+        description: `Funds added directly via UTR: ${utr}`,
+        timestamp: new Date().toISOString()
+      };
+      setTransactions([...transactions, newTx]);
     }
   };
 
