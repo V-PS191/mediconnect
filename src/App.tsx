@@ -12,6 +12,7 @@ const App: React.FC = () => {
     users, 
     setUsers, 
     doctors, 
+    setDoctors,
     appointments,
     paymentRequests,
     currentUser, 
@@ -32,6 +33,10 @@ const App: React.FC = () => {
     setUsers([...users, newUser]);
   };
 
+  const handleSignupDoctor = (newDoctor: Doctor) => {
+    setDoctors([...doctors, newDoctor]);
+  };
+
   if (!currentUser) {
     return (
       <Auth 
@@ -39,6 +44,7 @@ const App: React.FC = () => {
         users={users} 
         doctors={doctors}
         onSignup={handleSignup} 
+        onSignupDoctor={handleSignupDoctor}
       />
     );
   }

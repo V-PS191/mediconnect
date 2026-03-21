@@ -41,6 +41,34 @@ const UserPanel: React.FC<UserPanelProps> = ({
     ? doctors.find(d => d.id === parseInt(bookingData.doctorId))
     : null;
 
+  // Generate available time slots based on selected date and doctor
+  const getAvailableTimeSlots = () => {
+    if (!bookingData.date || !bookingData.doctorId) return [];
+    
+    // All possible slots from 09:00 to 17:00 at 15-min intervals
+    const allSlots = [];
+    for (let hour = 9; hour <= 17; hour++) {
+      allSlots.push(`${hour.toString().padStart(2, '0')}:00`);
+      if (hour !== 17) {
+        allSlots.push(`${hour.toString().padStart(2, '0')}:15`);
+        allSlots.push(`${hour.toString().padStart(2, '0')}:30`);
+        allSlots.push(`${hour.toString().padStart(2, '0')}:45`);
+      }
+    }
+
+    // Slots already booked for this user on this date
+    const userBookedTimes = appointments
+      .filter(a => a.userId === user.id && a.date === bookingData.date)
+      .map(a => a.time);
+
+    // Slots already booked for the selected doctor on this date
+    const doctorBookedTimes = appointments
+      .filter(a => a.doctorId === parseInt(bookingData.doctorId) && a.date === bookingData.date)
+      .map(a => a.time);
+
+    return allSlots.filter(slot => !userBookedTimes.includes(slot) && !doctorBookedTimes.includes(slot));
+  };
+
   const handleBookSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setBookingError(null);
@@ -101,7 +129,7 @@ const UserPanel: React.FC<UserPanelProps> = ({
               <label className="block text-sm font-medium text-gray-600 mb-1">Select Doctor</label>
               <select
                 value={bookingData.doctorId}
-                onChange={(e) => { setBookingData({ ...bookingData, doctorId: e.target.value }); setBookingError(null); }}
+                onChange={(e) => { setBookingData({ ...bookingData, doctorId: e.target.value, time: '' }); setBookingError(null); }}
                 className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-indigo-500"
                 required
               >
@@ -131,20 +159,31 @@ const UserPanel: React.FC<UserPanelProps> = ({
                   type="date"
                   min={getRelativeDate(1)}
                   value={bookingData.date}
-                  onChange={(e) => setBookingData({ ...bookingData, date: e.target.value })}
+                  onChange={(e) => { setBookingData({ ...bookingData, date: e.target.value, time: '' }); setBookingError(null); }}
                   className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-indigo-500"
                   required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-600 mb-1">Time</label>
-                <input
-                  type="time"
+                <select
                   value={bookingData.time}
                   onChange={(e) => setBookingData({ ...bookingData, time: e.target.value })}
                   className="w-full p-3 rounded-xl border border-gray-200 outline-none focus:ring-2 focus:ring-indigo-500"
                   required
-                />
+                  disabled={!bookingData.date || !bookingData.doctorId}
+                >
+                  <option value="">-- Select Time --</option>
+                  {getAvailableTimeSlots().map(slot => (
+                    <option key={slot} value={slot}>{slot}</option>
+                  ))}
+                </select>
+                {(!bookingData.date || !bookingData.doctorId) && (
+                  <p className="text-xs text-gray-400 mt-1">Select doctor & date first</p>
+                )}
+                {(bookingData.date && bookingData.doctorId && getAvailableTimeSlots().length === 0) && (
+                  <p className="text-xs text-red-500 mt-1">No slots available.</p>
+                )}
               </div>
             </div>
 

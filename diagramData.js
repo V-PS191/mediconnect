@@ -39,8 +39,28 @@ const diagramData = {
                     type: "user",
                     details: "Login / Sign-up via shared/auth.js. Session persists in localStorage.",
                     children: [
-                        { name: "Login", type: "user", details: "Username + password credential check." },
-                        { name: "Register", type: "user", details: "New user creation with db.createUser()." }
+                        { 
+                            name: "Login", 
+                            type: "user", 
+                            details: "Username + password credential check.",
+                            children: [
+                                { name: "Username", type: "user", details: "Required for authentication." },
+                                { name: "Password", type: "user", details: "Required for authentication." }
+                            ]
+                        },
+                        { 
+                            name: "Register", 
+                            type: "user", 
+                            details: "New user creation with db.createUser().",
+                            children: [
+                                { name: "Name", type: "user", details: "User's full name." },
+                                { name: "Email", type: "user", details: "User's email address." },
+                                { name: "Phone Number", type: "user", details: "User's contact number." },
+                                { name: "Address", type: "user", details: "User's residential address." },
+                                { name: "Username", type: "user", details: "Chosen unique username." },
+                                { name: "Password", type: "user", details: "Chosen secure password." }
+                            ]
+                        }
                     ]
                 },
                 {

@@ -7,7 +7,9 @@ export interface User {
   password?: string;
   email: string;
   phone: string;
+  address?: string;
   walletBalance: number;
+  role?: 'admin' | 'user';
 }
 
 export interface Doctor {
