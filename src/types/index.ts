@@ -47,3 +47,12 @@ export interface PaymentRequest {
   status: 'pending' | 'approved' | 'rejected';
   timestamp: string;
 }
+
+export interface Transaction {
+  id: number;
+  userId: number;
+  type: 'credit' | 'debit';
+  amount: number;
+  description: string;
+  timestamp: string;
+}

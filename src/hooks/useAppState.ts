@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import type { User, Doctor, Appointment, PaymentRequest, Role } from '../types';
-import { initialUsers, initialDoctors, initialAppointments, initialPaymentRequests } from '../data/initialData';
+import type { User, Doctor, Appointment, PaymentRequest, Role, Transaction } from '../types';
+import { initialUsers, initialDoctors, initialAppointments, initialPaymentRequests, initialTransactions } from '../data/initialData';
 
 export const useAppState = () => {
   const [users, setUsers] = useState<User[]>(initialUsers);
   const [doctors, setDoctors] = useState<Doctor[]>(initialDoctors);
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>(initialPaymentRequests);
+  const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
   const [currentUser, setCurrentUser] = useState<User | Doctor | null>(null);
   const [currentRole, setCurrentRole] = useState<Role | null>(null);
 
@@ -37,6 +38,17 @@ export const useAppState = () => {
         const updatedUser = { ...currentUser as User, walletBalance: (currentUser as User).walletBalance - doctor.appointmentFee };
         setCurrentUser(updatedUser);
         setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+        
+        // Record transaction
+        const newTx: Transaction = {
+          id: Date.now(),
+          userId: currentUser.id,
+          type: 'debit',
+          amount: doctor.appointmentFee,
+          description: `Paid for appointment with ${doctor.name}`,
+          timestamp: new Date().toISOString()
+        };
+        setTransactions([...transactions, newTx]);
       }
     }
   };
@@ -63,6 +75,17 @@ export const useAppState = () => {
       if (updatedUser) {
         const newUser = { ...updatedUser, walletBalance: updatedUser.walletBalance + request.amount };
         setUsers(users.map(u => u.id === newUser.id ? newUser : u));
+        
+        // Record credit transaction
+        const newTx: Transaction = {
+          id: Date.now() + 1, // +1 ensures unique ID even if processed at exact same ms as something else
+          userId: updatedUser.id,
+          type: 'credit',
+          amount: request.amount,
+          description: `Funds added via UTR: ${request.utr}`,
+          timestamp: new Date().toISOString()
+        };
+        setTransactions(prev => [...prev, newTx]);
       }
       setPaymentRequests(paymentRequests.map(p => p.id === requestId ? { ...p, status: 'approved' } : p));
     }
@@ -107,6 +130,7 @@ export const useAppState = () => {
     setAppointments,
     paymentRequests,
     setPaymentRequests,
+    transactions,
     currentUser,
     currentRole,
     login,

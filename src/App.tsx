@@ -15,6 +15,7 @@ const App: React.FC = () => {
     setDoctors,
     appointments,
     paymentRequests,
+    transactions,
     currentUser, 
     currentRole, 
     login, 
@@ -60,8 +61,10 @@ const App: React.FC = () => {
             doctors={doctors}
             appointments={appointments}
             paymentRequests={paymentRequests}
+            transactions={transactions}
             onBookAppointment={bookAppointment}
             onRequestMoney={requestMoney}
+            onLogout={logout}
           />
         )}
 

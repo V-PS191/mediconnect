@@ -1,4 +1,4 @@
-import type { User, Doctor, Appointment, PaymentRequest } from '../types';
+import type { User, Doctor, Appointment, PaymentRequest, Transaction } from '../types';
 import { getRelativeDate } from '../utils/dateUtils';
 
 export const initialDoctors: Doctor[] = [
@@ -40,3 +40,5 @@ export const initialAppointments: Appointment[] = [
 ];
 
 export const initialPaymentRequests: PaymentRequest[] = [];
+
+export const initialTransactions: Transaction[] = [];
