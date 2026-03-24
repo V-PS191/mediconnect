@@ -21,19 +21,39 @@ export const useAppState = () => {
     setCurrentRole(null);
   };
 
-  const bookAppointment = (appointment: Appointment) => {
+  const bookAppointment = async (appointment: Appointment) => {
+    let doctor: Doctor | undefined;
     // Guard: check wallet balance before booking
     if (currentRole === 'user' && currentUser) {
-      const doctor = doctors.find(d => d.id === appointment.doctorId);
+      doctor = doctors.find(d => d.id === appointment.doctorId || (d as any)._id === appointment.doctorId);
       if (doctor && (currentUser as User).walletBalance < doctor.appointmentFee) {
         return; // Block booking if insufficient balance
       }
     }
 
+    try {
+      // Trigger the backend to save appointment and SEND EMAIL
+      const backendPayload = {
+        ...appointment,
+        userId: (currentUser as any)._id || currentUser?.id,
+        doctorId: appointment.doctorId,
+        userObj: currentUser,
+        doctorObj: doctor || doctors.find(d => d.id === appointment.doctorId)
+      };
+
+      await fetch('http://localhost:5000/api/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(backendPayload)
+      });
+    } catch(err) {
+      console.warn("Failed to reach email server", err);
+    }
+
     setAppointments([...appointments, appointment]);
     // Deduct fee from user wallet
     if (currentRole === 'user' && currentUser) {
-      const doctor = doctors.find(d => d.id === appointment.doctorId);
+      doctor = doctor || doctors.find(d => d.id === appointment.doctorId);
       if (doctor) {
         const updatedUser = { ...currentUser as User, walletBalance: (currentUser as User).walletBalance - doctor.appointmentFee };
         setCurrentUser(updatedUser);

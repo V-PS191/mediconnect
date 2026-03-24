@@ -96,6 +96,32 @@ const SignupForm: React.FC<SignupFormProps> = ({ role, onSignup, onSignupDoctor,
     setOtpError('');
     const fullName = `${formData.firstName} ${formData.lastName}`.trim();
 
+    const registerUser = async (payload: any, isDoctor: boolean) => {
+      try {
+        const response = await fetch('http://localhost:5000/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          alert(`Registration failed: ${errorData.message}`);
+          return;
+        }
+        
+        const data = await response.json();
+        if (isDoctor) {
+          onSignupDoctor(data);
+        } else {
+          onSignup(data);
+        }
+      } catch (err) {
+        console.error("Error registering:", err);
+        alert("Server error during registration.");
+      }
+    };
+
     if (role === 'doctor') {
       const newDoctor: Doctor = {
         id: Date.now(),
@@ -110,10 +136,10 @@ const SignupForm: React.FC<SignupFormProps> = ({ role, onSignup, onSignupDoctor,
         lunchStart: formData.lunchStart,
         lunchEnd: formData.lunchEnd
       };
-      onSignupDoctor(newDoctor);
+      
+      registerUser({ ...newDoctor, role: 'doctor' }, true);
     } else {
-      const newUser: User = {
-        id: Date.now(),
+      const newUserPayload = {
         name: fullName,
         username: formData.username,
         password: formData.password,
@@ -123,7 +149,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ role, onSignup, onSignupDoctor,
         walletBalance: 0,
         role: role === 'admin' ? 'admin' : 'user'
       };
-      onSignup(newUser);
+      registerUser(newUserPayload, false);
     }
   };
 

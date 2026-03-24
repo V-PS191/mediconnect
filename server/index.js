@@ -19,9 +19,36 @@ mongoose.connect(process.env.VITE_MONGODB_URI)
 const User = require('./models/User');
 const Doctor = require('./models/Doctor');
 const Appointment = require('./models/Appointment');
+const emailService = require('./utils/emailService');
 
 // Routes
 // Authentication (Simplified for now)
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { role, username } = req.body;
+    
+    if (role === 'doctor') {
+      const existingDoc = await Doctor.findOne({ username });
+      if (existingDoc) return res.status(400).json({ message: 'Username already taken' });
+      
+      const newDoctor = new Doctor(req.body);
+      await newDoctor.save();
+      return res.status(201).json(newDoctor);
+    } else {
+      const existingUser = await User.findOne({ username });
+      if (existingUser) return res.status(400).json({ message: 'Username already taken' });
+      
+      // Default to 'user' if role isn't explicitly provided (like 'admin')
+      req.body.role = req.body.role || 'user';
+      const newUser = new User(req.body);
+      await newUser.save();
+      return res.status(201).json(newUser);
+    }
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
 app.post('/api/auth/login', async (req, res) => {
   const { username, password, role } = req.body;
   try {
@@ -74,6 +101,34 @@ app.post('/api/appointments', async (req, res) => {
   try {
     const appointment = new Appointment(req.body);
     await appointment.save();
+
+    // Send calendar invite
+    try {
+      // Find the user/doctor by ObjectId, or fallback to the frontend's mock object if it was passed
+      // We'll trust whatever info is passed from the body, or lookup if it's a valid ID.
+      let user = null;
+      let doctor = null;
+
+      if (mongoose.Types.ObjectId.isValid(appointment.userId)) {
+        user = await User.findById(appointment.userId);
+      } else {
+        // Fallback for mock IDs
+        user = Object.assign({ name: req.body.patientName || 'Patient', email: req.body.patientEmail || 'singhneetu02101985@gmail.com' }, req.body.userObj);
+      }
+
+      if (mongoose.Types.ObjectId.isValid(appointment.doctorId)) {
+        doctor = await Doctor.findById(appointment.doctorId);
+      } else {
+        doctor = Object.assign({ name: req.body.doctorName || 'Doctor' }, req.body.doctorObj);
+      }
+
+      if (user && doctor) {
+        emailService.sendAppointmentCalendarInvite(user, doctor, appointment);
+      }
+    } catch (emailErr) {
+      console.error('Error triggering email service:', emailErr);
+    }
+
     res.status(201).json(appointment);
   } catch (err) {
     res.status(400).json({ message: err.message });

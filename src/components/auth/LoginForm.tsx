@@ -16,26 +16,48 @@ const LoginForm: React.FC<LoginFormProps> = ({ role, onLogin, onBack, users, doc
 
   const displayRole = role === 'user' ? 'Patient' : role === 'admin' ? 'Reception' : 'Doctor';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    let foundUser: User | Doctor | undefined;
+    setError('');
 
-    if (role === 'admin') {
-      if (username === 'admin' && password === 'admin') {
-        foundUser = { id: 999, name: 'System Admin', username: 'admin', email: 'admin@mediconnect.com', phone: '000-0000', walletBalance: 0, role: 'admin' };
-      } else {
-        foundUser = users.find(u => u.username === username && u.password === password && u.role === 'admin');
-      }
-    } else if (role === 'doctor') {
-      foundUser = doctors.find(d => d.username === username && d.password === password);
-    } else {
-      foundUser = users.find(u => u.username === username && u.password === password && (!u.role || u.role === 'user'));
+    // Demo admin bypass
+    if (role === 'admin' && username === 'admin' && password === 'admin') {
+      const demoAdmin: User = { id: 999, name: 'System Admin', username: 'admin', password: 'admin', email: 'admin@mediconnect.com', phone: '000-0000', walletBalance: 0, role: 'admin', address: 'System' };
+      onLogin(role, demoAdmin);
+      return;
     }
 
-    if (foundUser) {
+    try {
+      const response = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password, role })
+      });
+      
+      if (!response.ok) {
+        // Fallback to local data if seeded user isn't in DB for some reason
+        let localUser: User | Doctor | undefined;
+        if (role === 'doctor') {
+          localUser = doctors.find(d => d.username === username && d.password === password);
+        } else {
+          localUser = users.find(u => u.username === username && u.password === password && (!u.role || u.role === role));
+        }
+
+        if (localUser) {
+          onLogin(role, localUser);
+          return;
+        }
+
+        const errorData = await response.json().catch(() => ({}));
+        setError(errorData.message || 'Invalid username or password for this role.');
+        return;
+      }
+      
+      const foundUser = await response.json();
       onLogin(role, foundUser);
-    } else {
-      setError('Invalid username or password for this role.');
+    } catch (err) {
+      console.error("Login API failed:", err);
+      setError("Could not connect to the database server.");
     }
   };
 
