@@ -28,6 +28,8 @@ const SignupForm: React.FC<SignupFormProps> = ({ role, onSignup, onSignupDoctor,
   });
 
   const [otpStep, setOtpStep] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [otpValue, setOtpValue] = useState('');
   const [generatedOtp, setGeneratedOtp] = useState('');
   const [otpError, setOtpError] = useState('');
@@ -190,11 +192,13 @@ const SignupForm: React.FC<SignupFormProps> = ({ role, onSignup, onSignupDoctor,
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              <div>
-                <input type="password" name="password" value={formData.password} onChange={handleChange} className="w-full px-5 py-3 rounded-full border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-sm placeholder-gray-400 text-gray-700 font-medium" placeholder="Password *" required minLength={4} />
+              <div className="relative">
+                <input type={showPassword ? "text" : "password"} name="password" value={formData.password} onChange={handleChange} className="w-full px-5 py-3 rounded-full border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-sm placeholder-gray-400 text-gray-700 font-medium" placeholder="Password *" required minLength={4} />
+                <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none" onClick={() => setShowPassword(!showPassword)} title={showPassword ? "Hide password" : "Show password"}>{showPassword ? '🙈' : '👁️'}</button>
               </div>
-              <div>
-                <input type="password" name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className="w-full px-5 py-3 rounded-full border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-sm placeholder-gray-400 text-gray-700 font-medium" placeholder="Confirm Password *" required minLength={4} />
+              <div className="relative">
+                <input type={showConfirmPassword ? "text" : "password"} name="confirmPassword" value={formData.confirmPassword} onChange={handleChange} className="w-full px-5 py-3 rounded-full border border-gray-200 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-sm placeholder-gray-400 text-gray-700 font-medium" placeholder="Confirm Password *" required minLength={4} />
+                <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none" onClick={() => setShowConfirmPassword(!showConfirmPassword)} title={showConfirmPassword ? "Hide password" : "Show password"}>{showConfirmPassword ? '🙈' : '👁️'}</button>
               </div>
             </div>
 

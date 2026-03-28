@@ -1,0 +1,814 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediConnect — System Design</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        header {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.25);
+            padding: 14px 28px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .logo-icon {
+            width: 38px; height: 38px;
+            background: linear-gradient(135deg, #6366f1, #a855f7);
+            border-radius: 10px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.35);
+        }
+        .logo h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.3px; }
+        .logo h1 span { color: #818cf8; }
+        .header-hint {
+            font-size: 12px;
+            color: #64748b;
+            background: rgba(30, 41, 59, 0.8);
+            padding: 6px 14px;
+            border-radius: 20px;
+            border: 1px solid #334155;
+        }
+
+        /* ── Diagram Canvas ── */
+        #diagram-canvas {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+        }
+        #diagram-canvas:active { cursor: grabbing; }
+
+        /* ── Floating Controls ── */
+        .controls {
+            position: absolute;
+            bottom: 24px;
+            left: 24px;
+            display: flex;
+            gap: 8px;
+            z-index: 50;
+        }
+        .ctrl-btn {
+            width: 42px; height: 42px;
+            background: rgba(30, 41, 59, 0.9);
+            border: 1px solid #334155;
+            border-radius: 12px;
+            color: #94a3b8;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(10px);
+            transition: all 0.2s;
+        }
+        .ctrl-btn:hover { background: #334155; color: #e2e8f0; border-color: #6366f1; }
+
+        /* ── Legend (floating bottom-right) ── */
+        .legend {
+            position: absolute;
+            bottom: 24px;
+            right: 24px;
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 16px 20px;
+            backdrop-filter: blur(12px);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .legend-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; margin-bottom: 2px; }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            color: #94a3b8;
+        }
+        .legend-dot {
+            width: 14px; height: 14px;
+            border-radius: 6px;
+            flex-shrink: 0;
+        }
+
+        /* ── Key Notes (floating top-right) ── */
+        .key-notes {
+            position: absolute;
+            top: 16px;
+            right: 24px;
+            background: rgba(15, 23, 42, 0.92);
+            border: 1px solid #334155;
+            border-radius: 14px;
+            padding: 18px 22px;
+            max-width: 380px;
+            backdrop-filter: blur(12px);
+            z-index: 50;
+        }
+        .key-notes-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #f59e0b;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+        .key-notes ul {
+            list-style: none;
+            padding: 0;
+        }
+        .key-notes li {
+            font-size: 12px;
+            color: #94a3b8;
+            line-height: 1.5;
+            padding: 5px 0;
+            padding-left: 18px;
+            position: relative;
+        }
+        .key-notes li::before {
+            content: '▸';
+            position: absolute;
+            left: 0;
+            color: #6366f1;
+            font-size: 13px;
+        }
+
+        /* ── Tooltip ── */
+        .tooltip {
+            position: absolute;
+            pointer-events: none;
+            background: rgba(15, 23, 42, 0.96);
+            border: 1px solid #475569;
+            border-radius: 10px;
+            padding: 12px 16px;
+            font-size: 12px;
+            color: #cbd5e1;
+            max-width: 260px;
+            line-height: 1.5;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.4);
+            z-index: 200;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+        .tooltip .tt-title {
+            font-weight: 700;
+            font-size: 13px;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+        }
+
+        /* ── SVG Node and Link Styles ── */
+        .link-path {
+            fill: none;
+            stroke-width: 2;
+            opacity: 0.5;
+        }
+        .node-group { cursor: pointer; }
+        .node-group text {
+            font-family: 'Inter', sans-serif;
+            font-size: 12px;
+            font-weight: 500;
+            fill: #e2e8f0;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="logo">
+        <div class="logo-icon">🏥</div>
+        <h1>Medi<span>Connect</span> — System Design</h1>
+    </div>
+    <div class="header-hint">🖱️ Click nodes to expand · Scroll to zoom · Drag to pan</div>
+</header>
+
+<div id="diagram-canvas">
+    <!-- Controls -->
+    <div class="controls">
+        <button class="ctrl-btn" id="zoom-in" title="Zoom In">+</button>
+        <button class="ctrl-btn" id="zoom-out" title="Zoom Out">−</button>
+        <button class="ctrl-btn" id="zoom-fit" title="Fit View">⊡</button>
+        <button class="ctrl-btn" id="expand-all" title="Expand All">⊞</button>
+    </div>
+
+    <!-- Key Notes -->
+    <div class="key-notes">
+        <div class="key-notes-title">⚡ Key System Notes</div>
+        <ul id="key-notes-list"></ul>
+    </div>
+
+    <!-- Legend -->
+    <div class="legend">
+        <div class="legend-title">Legend</div>
+        <div class="legend-item"><div class="legend-dot" style="background: linear-gradient(135deg, #6366f1, #818cf8);"></div> Core System</div>
+        <div class="legend-item"><div class="legend-dot" style="background: linear-gradient(135deg, #ec4899, #f472b6);"></div> User / Patient Flow</div>
+        <div class="legend-item"><div class="legend-dot" style="background: linear-gradient(135deg, #f59e0b, #fbbf24);"></div> Admin Panel</div>
+        <div class="legend-item"><div class="legend-dot" style="background: linear-gradient(135deg, #10b981, #34d399);"></div> Doctor Panel</div>
+        <div class="legend-item"><div class="legend-dot" style="background: linear-gradient(135deg, #06b6d4, #22d3ee);"></div> Shared Services</div>
+        <div class="legend-item"><div class="legend-dot" style="background: linear-gradient(135deg, #8b5cf6, #a78bfa);"></div> Decision / Check</div>
+        <div class="legend-item"><div class="legend-dot" style="background: linear-gradient(135deg, #ef4444, #f87171);"></div> Super Admin</div>
+    </div>
+
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip">
+        <div class="tt-title" id="tt-title"></div>
+        <div id="tt-body"></div>
+    </div>
+</div>
+
+<script>
+/**
+ * diagramData.js
+ * MediConnect System Design — Tree Data
+ * 
+ * Hierarchy Order: User → Doctor → Admin → Super Admin → Shared Services
+ * 
+ * Each node has:
+ *   name      – Display label
+ *   type      – Color category: root | user | admin | doctor | shared | decision | superadmin
+ *   details   – Tooltip description
+ *   children  – Sub-nodes
+ */
+
+const systemKeyNotes = [
+    "Four-panel architecture: User, Doctor, Admin, Super Admin — each isolated with dedicated UI.",
+    "Super Admin manages all hospital branches — each branch has its own Admin.",
+    "Central shared/db.js enforces a single source of truth for all CRUD operations.",
+    "Atomic booking: slot validation + wallet deduction happen in one transaction.",
+    "Role-based auth via shared/auth.js guards every panel from unauthorized access.",
+    "Midnight-crossing shifts handled with normalised minute offsets (no raw HH:MM bugs).",
+    "Queue cascade: completing or no-showing auto-adjusts all downstream appointments.",
+    "Wallet safety: balance can never go negative — enforced at db layer.",
+    "Payment requests require Admin UTR verification before wallet credit.",
+    "Multi-branch hospital support: Super Admin oversees all branches centrally."
+];
+
+const diagramData = {
+    name: "MediConnect",
+    type: "root",
+    details: "Hospital Appointment Management System — four distinct panels sharing a central data layer with multi-branch support.",
+    children: [
+        {
+            name: "User Panel",
+            type: "user",
+            details: "Patient-facing interface for booking appointments, managing wallet, and tracking queue.",
+            children: [
+                {
+                    name: "Authentication",
+                    type: "user",
+                    details: "Login / Sign-up via shared/auth.js. Session persists in localStorage.",
+                    children: [
+                        { 
+                            name: "Login", 
+                            type: "user", 
+                            details: "Username + password credential check.",
+                            children: [
+                                { name: "Username", type: "user", details: "Required for authentication." },
+                                { name: "Password", type: "user", details: "Required for authentication." }
+                            ]
+                        },
+                        { 
+                            name: "Register", 
+                            type: "user", 
+                            details: "New user creation with db.createUser().",
+                            children: [
+                                { name: "Name", type: "user", details: "User's full name." },
+                                { name: "Email", type: "user", details: "User's email address." },
+                                { name: "Phone Number", type: "user", details: "User's contact number." },
+                                { name: "Address", type: "user", details: "User's residential address." },
+                                { name: "Username", type: "user", details: "Chosen unique username." },
+                                { name: "Password", type: "user", details: "Chosen secure password." }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    name: "Book Appointment",
+                    type: "user",
+                    details: "Core booking flow — select doctor → date → time slot → confirm.",
+                    children: [
+                        { name: "Select Doctor", type: "user", details: "Dropdown populated from db.getDoctors()." },
+                        { name: "Pick Date", type: "user", details: "Future dates only. Min = tomorrow." },
+                        { name: "Choose Slot", type: "decision", details: "db.getAvailableSlots(doctorId, date) — the single source of truth." },
+                        {
+                            name: "Wallet Check",
+                            type: "decision",
+                            details: "Is user.walletBalance >= doctor.appointmentFee?",
+                            children: [
+                                { name: "Insufficient → Add Money", type: "user", details: "Submit amount + UTR → awaits Admin approval." },
+                                {
+                                    name: "Sufficient → Confirm",
+                                    type: "user",
+                                    details: "Atomic: slot lock + fee deduct + appointment insert.",
+                                    children: [
+                                        { name: "Booking Created", type: "user", details: "Shows appointment ID and queue position." }
+                                    ]
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    name: "My Appointments",
+                    type: "user",
+                    details: "View all bookings: Doctor, Date, Time, Fee, Status badge, Queue position."
+                },
+                {
+                    name: "Wallet",
+                    type: "user",
+                    details: "View balance. Submit Add Money requests with UTR. Track pending approvals."
+                }
+            ]
+        },
+        {
+            name: "Doctor Panel",
+            type: "doctor",
+            details: "Doctor-facing interface for managing daily patient queue and appointments.",
+            children: [
+                { name: "Dashboard Stats", type: "doctor", details: "Total, Pending, Upcoming, Completed counts." },
+                {
+                    name: "Queue Management",
+                    type: "doctor",
+                    details: "Action buttons per appointment to drive status transitions.",
+                    children: [
+                        { name: "Confirm", type: "doctor", details: "pending → confirmed. Notifies patient." },
+                        {
+                            name: "Modify / Delay",
+                            type: "doctor",
+                            details: "Change date, time, duration, notes. Status → rescheduled.",
+                            children: [
+                                { name: "Cascade Queue Adjust", type: "decision", details: "Recalculates all downstream slots respecting lunch & shift end." }
+                            ]
+                        },
+                        { name: "Complete", type: "doctor", details: "confirmed/rescheduled → completed. Triggers queue shift." },
+                        { name: "No-Show", type: "doctor", details: "→ noShow. Refund fee to wallet. Queue shifts up." }
+                    ]
+                }
+            ]
+        },
+        {
+            name: "Admin Panel",
+            type: "admin",
+            details: "Branch-level system control: users, doctors, payments, and all appointments for one hospital branch.",
+            children: [
+                { name: "Dashboard", type: "admin", details: "Branch-level stats: total users, doctors, appointments, pending payments." },
+                {
+                    name: "User Management",
+                    type: "admin",
+                    details: "Search, Add, Soft-Delete users. Manual wallet adjustments.",
+                    children: [
+                        { name: "Add User", type: "admin", details: "Name, email, phone, username, password, initial balance." },
+                        { name: "Delete User", type: "decision", details: "Soft delete. Cascades to linked appointments." },
+                        { name: "Wallet Adjust", type: "admin", details: "Positive or negative delta with reason note." }
+                    ]
+                },
+                {
+                    name: "Doctor Management",
+                    type: "admin",
+                    details: "Add/remove doctors for this branch. Configure shifts, lunch, fees, specializations.",
+                    children: [
+                        { name: "Add Doctor", type: "admin", details: "All fields including shift & lunch validation." },
+                        { name: "Delete Doctor", type: "decision", details: "Soft delete. Associated appointments deactivated." }
+                    ]
+                },
+                {
+                    name: "Payment Approvals",
+                    type: "admin",
+                    details: "Review pending Add Money requests. Verify UTR. Approve or Reject.",
+                    children: [
+                        { name: "Approve", type: "admin", details: "Atomic: credit amount to user wallet." },
+                        { name: "Reject", type: "admin", details: "Mark invalid. No wallet change." }
+                    ]
+                },
+                { name: "All Appointments", type: "admin", details: "Branch-level view. Filter by status, doctor, date. Modify/Delete any." }
+            ]
+        },
+        {
+            name: "Super Admin Panel",
+            type: "superadmin",
+            details: "Top-level control over the entire hospital network. Manages all branches, admins, doctors, and users across the system.",
+            children: [
+                {
+                    name: "Global Dashboard",
+                    type: "superadmin",
+                    details: "Cross-branch analytics: total branches, admins, doctors, users, appointments, revenue."
+                },
+                {
+                    name: "Branch Management",
+                    type: "superadmin",
+                    details: "Create, edit, or deactivate hospital branches. Each branch gets one Admin.",
+                    children: [
+                        { name: "Add Branch", type: "superadmin", details: "Branch name, location, contact info. Auto-creates branch record." },
+                        { name: "Edit Branch", type: "superadmin", details: "Update branch details, reassign Admin." },
+                        { name: "Deactivate Branch", type: "decision", details: "Soft-deletes branch + cascades to all linked admins, doctors, users, appointments." }
+                    ]
+                },
+                {
+                    name: "Admin Management",
+                    type: "superadmin",
+                    details: "Assign, reassign, or remove Admins for each branch.",
+                    children: [
+                        { name: "Add Admin", type: "superadmin", details: "Create admin account and assign to a hospital branch." },
+                        { name: "Reassign Admin", type: "superadmin", details: "Move admin from one branch to another." },
+                        { name: "Remove Admin", type: "decision", details: "Deactivate admin credentials. Branch needs new admin assignment." }
+                    ]
+                },
+                {
+                    name: "Global Doctor Oversight",
+                    type: "superadmin",
+                    details: "View and manage all doctors across all branches.",
+                    children: [
+                        { name: "View All Doctors", type: "superadmin", details: "Cross-branch searchable table of every doctor." },
+                        { name: "Transfer Doctor", type: "superadmin", details: "Move doctor from one branch to another." }
+                    ]
+                },
+                {
+                    name: "Global User Oversight",
+                    type: "superadmin",
+                    details: "View and manage all patients across all branches.",
+                    children: [
+                        { name: "View All Users", type: "superadmin", details: "Cross-branch searchable table of every user." },
+                        { name: "Global Wallet Adjust", type: "superadmin", details: "Override wallet balance for any user across any branch." }
+                    ]
+                },
+                {
+                    name: "Global Appointments",
+                    type: "superadmin",
+                    details: "View all appointments across every branch. Filter by branch, doctor, status, date range."
+                },
+                {
+                    name: "Reports & Analytics",
+                    type: "superadmin",
+                    details: "Revenue reports, branch performance, peak hours analysis, doctor utilisation rates.",
+                    children: [
+                        { name: "Revenue by Branch", type: "superadmin", details: "Total fees collected per branch over time." },
+                        { name: "Doctor Utilisation", type: "superadmin", details: "Appointment fill rates and no-show percentages per doctor." },
+                        { name: "Peak Hours", type: "superadmin", details: "Heatmap of busiest booking times across all branches." }
+                    ]
+                }
+            ]
+        },
+        {
+            name: "Shared Services",
+            type: "shared",
+            details: "Central logic layer — imported by all four panels. No direct data manipulation outside this layer.",
+            children: [
+                {
+                    name: "db.js",
+                    type: "shared",
+                    details: "Data store: Branches, Users, Doctors, Appointments, Payments. All CRUD + atomic transactions.",
+                    children: [
+                        { name: "getAvailableSlots()", type: "shared", details: "Canonical slot check — blocks pending, confirmed, rescheduled." },
+                        { name: "createAppointment()", type: "shared", details: "Atomic: validate slot + deduct fee + insert record." },
+                        { name: "adjustQueue()", type: "shared", details: "Cascade recalculation after noShow / complete / modify." },
+                        { name: "resolvePayment()", type: "shared", details: "Atomic: approve request + credit wallet." },
+                        { name: "manageBranch()", type: "shared", details: "CRUD for hospital branches — Super Admin only." }
+                    ]
+                },
+                {
+                    name: "auth.js",
+                    type: "shared",
+                    details: "Login, logout, session tokens, role-based guards (user, doctor, admin, superadmin)."
+                },
+                {
+                    name: "utils.js",
+                    type: "shared",
+                    details: "timeToMinutes(), minutesToTime(), formatCurrency(), showNotification()."
+                }
+            ]
+        }
+    ]
+};
+
+</script>
+<script>
+/**
+ * diagramEngine.js
+ * MediConnect System Diagram — Rendering Engine
+ * Powered by D3.js v7
+ * 
+ * Features:
+ *   - Vibrant color-coded collapsible tree
+ *   - Rounded-rect nodes with gradient fills
+ *   - Smooth curved links with color inheritance
+ *   - Hover tooltip
+ *   - Zoom / Pan / Fit / Expand-all controls
+ */
+
+(function () {
+    "use strict";
+
+    // ── Color Palette ──
+    const palette = {
+        root:     { bg: "#6366f1", bgEnd: "#818cf8", text: "#fff",    link: "#6366f1" },
+        user:     { bg: "#ec4899", bgEnd: "#f472b6", text: "#fff",    link: "#ec4899" },
+        admin:    { bg: "#f59e0b", bgEnd: "#fbbf24", text: "#1c1917", link: "#f59e0b" },
+        doctor:   { bg: "#10b981", bgEnd: "#34d399", text: "#fff",    link: "#10b981" },
+        shared:   { bg: "#06b6d4", bgEnd: "#22d3ee", text: "#fff",    link: "#06b6d4" },
+        decision:   { bg: "#8b5cf6", bgEnd: "#a78bfa", text: "#fff",    link: "#8b5cf6" },
+        superadmin: { bg: "#ef4444", bgEnd: "#f87171", text: "#fff",    link: "#ef4444" }
+    };
+
+    const nodeW = 170, nodeH = 36, nodeR = 10;
+
+    // ── Populate Key Notes ──
+    const notesList = document.getElementById("key-notes-list");
+    if (notesList && typeof systemKeyNotes !== "undefined") {
+        systemKeyNotes.forEach(n => {
+            const li = document.createElement("li");
+            li.textContent = n;
+            notesList.appendChild(li);
+        });
+    }
+
+    // ── Canvas Setup ──
+    const container = document.getElementById("diagram-canvas");
+    let W = container.clientWidth;
+    let H = container.clientHeight;
+
+    const svg = d3.select(container)
+        .append("svg")
+        .attr("width", W)
+        .attr("height", H);
+
+    // Gradient definitions
+    const defs = svg.append("defs");
+    Object.entries(palette).forEach(([key, val]) => {
+        const grad = defs.append("linearGradient")
+            .attr("id", `grad-${key}`)
+            .attr("x1", "0%").attr("y1", "0%")
+            .attr("x2", "100%").attr("y2", "100%");
+        grad.append("stop").attr("offset", "0%").attr("stop-color", val.bg);
+        grad.append("stop").attr("offset", "100%").attr("stop-color", val.bgEnd);
+    });
+
+    // Drop shadow filter
+    const filter = defs.append("filter").attr("id", "drop-shadow").attr("x", "-30%").attr("y", "-30%").attr("width", "160%").attr("height", "160%");
+    filter.append("feDropShadow").attr("dx", 0).attr("dy", 3).attr("stdDeviation", 5).attr("flood-color", "rgba(0,0,0,0.35)");
+
+    // Glow filter for hover
+    const glow = defs.append("filter").attr("id", "glow").attr("x", "-50%").attr("y", "-50%").attr("width", "200%").attr("height", "200%");
+    glow.append("feGaussianBlur").attr("stdDeviation", 6).attr("result", "blur");
+    const feMerge = glow.append("feMerge");
+    feMerge.append("feMergeNode").attr("in", "blur");
+    feMerge.append("feMergeNode").attr("in", "SourceGraphic");
+
+    const g = svg.append("g");
+
+    // ── Zoom ──
+    const zoomBehavior = d3.zoom()
+        .scaleExtent([0.15, 2.5])
+        .on("zoom", e => g.attr("transform", e.transform));
+
+    svg.call(zoomBehavior).on("dblclick.zoom", null);
+
+    // ── Tree Layout ──
+    const treeLayout = d3.tree().nodeSize([52, 300]);
+
+    const root = d3.hierarchy(diagramData, d => d.children);
+    root.x0 = 0;
+    root.y0 = 0;
+
+    let idCounter = 0;
+    const duration = 500;
+
+    // ── Tooltip ──
+    const tooltip = document.getElementById("tooltip");
+    const ttTitle = document.getElementById("tt-title");
+    const ttBody  = document.getElementById("tt-body");
+
+    function showTip(evt, d) {
+        ttTitle.textContent = d.data.name;
+        ttBody.textContent = d.data.details || "";
+        tooltip.style.opacity = 1;
+        tooltip.style.left = (evt.pageX + 16) + "px";
+        tooltip.style.top  = (evt.pageY - 10) + "px";
+    }
+    function hideTip() { tooltip.style.opacity = 0; }
+
+    // ── Render ──
+    function render(source) {
+        const tree = treeLayout(root);
+        const nodes = tree.descendants();
+        const links = tree.descendants().slice(1);
+
+        // Fixed depth
+        nodes.forEach(d => d.y = d.depth * 300);
+
+        // ── Links ──
+        const link = g.selectAll("path.tree-link").data(links, d => d.id || (d.id = ++idCounter));
+
+        const linkEnter = link.enter()
+            .insert("path", "g")
+            .attr("class", "tree-link link-path")
+            .attr("d", () => curve({ x: source.x0, y: source.y0 }, { x: source.x0, y: source.y0 }))
+            .attr("stroke", d => (palette[d.data.type] || palette.root).link);
+
+        linkEnter.merge(link)
+            .transition().duration(duration)
+            .attr("d", d => curve(d, d.parent))
+            .attr("stroke", d => (palette[d.data.type] || palette.root).link);
+
+        link.exit().transition().duration(duration)
+            .attr("d", () => curve({ x: source.x, y: source.y }, { x: source.x, y: source.y }))
+            .remove();
+
+        // ── Nodes ──
+        const node = g.selectAll("g.node-group").data(nodes, d => d.id || (d.id = ++idCounter));
+
+        const nodeEnter = node.enter()
+            .append("g")
+            .attr("class", "node-group")
+            .attr("transform", () => `translate(${source.y0},${source.x0})`)
+            .on("click", (evt, d) => {
+                evt.stopPropagation();
+                if (d.children) { d._children = d.children; d.children = null; }
+                else { d.children = d._children; d._children = null; }
+                render(d);
+            })
+            .on("mouseover", showTip)
+            .on("mousemove", (evt) => {
+                tooltip.style.left = (evt.pageX + 16) + "px";
+                tooltip.style.top  = (evt.pageY - 10) + "px";
+            })
+            .on("mouseout", hideTip);
+
+        // Node rectangle
+        nodeEnter.append("rect")
+            .attr("class", "node-rect")
+            .attr("width", nodeW)
+            .attr("height", nodeH)
+            .attr("x", -nodeW / 2)
+            .attr("y", -nodeH / 2)
+            .attr("rx", nodeR)
+            .attr("ry", nodeR)
+            .attr("fill", d => `url(#grad-${d.data.type || "root"})`)
+            .attr("filter", "url(#drop-shadow)")
+            .attr("opacity", 0);
+
+        // Collapse indicator (small dot)
+        nodeEnter.append("circle")
+            .attr("class", "collapse-dot")
+            .attr("cx", nodeW / 2 - 2)
+            .attr("cy", 0)
+            .attr("r", 0)
+            .attr("fill", "#fff")
+            .attr("opacity", 0.7);
+
+        // Label
+        nodeEnter.append("text")
+            .attr("dy", "0.35em")
+            .attr("text-anchor", "middle")
+            .attr("fill", d => (palette[d.data.type] || palette.root).text)
+            .text(d => truncate(d.data.name, 22))
+            .attr("opacity", 0);
+
+        // ── Update (merge) ──
+        const nodeUpdate = nodeEnter.merge(node);
+
+        nodeUpdate.transition().duration(duration)
+            .attr("transform", d => `translate(${d.y},${d.x})`);
+
+        nodeUpdate.select("rect.node-rect")
+            .transition().duration(duration)
+            .attr("opacity", 1);
+
+        nodeUpdate.select("text")
+            .transition().duration(duration)
+            .attr("opacity", 1);
+
+        nodeUpdate.select("circle.collapse-dot")
+            .transition().duration(duration)
+            .attr("r", d => d._children ? 5 : 0);
+
+        // Hover glow
+        nodeUpdate.on("mouseover.glow", function (evt, d) {
+            d3.select(this).select("rect").attr("filter", "url(#glow)");
+            showTip(evt, d);
+        }).on("mouseout.glow", function () {
+            d3.select(this).select("rect").attr("filter", "url(#drop-shadow)");
+            hideTip();
+        });
+
+        // ── Exit ──
+        const nodeExit = node.exit().transition().duration(duration)
+            .attr("transform", () => `translate(${source.y},${source.x})`)
+            .remove();
+
+        nodeExit.select("rect").attr("opacity", 0);
+        nodeExit.select("text").attr("opacity", 0);
+
+        // Stash old positions
+        nodes.forEach(d => { d.x0 = d.x; d.y0 = d.y; });
+    }
+
+    function curve(s, d) {
+        return `M ${s.y} ${s.x}
+                C ${(s.y + d.y) / 2} ${s.x},
+                  ${(s.y + d.y) / 2} ${d.x},
+                  ${d.y} ${d.x}`;
+    }
+
+    function truncate(str, max) {
+        return str.length > max ? str.slice(0, max - 1) + "…" : str;
+    }
+
+    // ── Collapse helpers ──
+    function collapseAll(node) {
+        if (node.children) {
+            node._children = node.children;
+            node._children.forEach(collapseAll);
+            node.children = null;
+        }
+    }
+
+    function expandAll(node) {
+        if (node._children) {
+            node.children = node._children;
+            node._children = null;
+        }
+        if (node.children) node.children.forEach(expandAll);
+    }
+
+    // Start with depth-1 children collapsed
+    if (root.children) {
+        root.children.forEach(c => {
+            if (c.children) {
+                c.children.forEach(collapseAll);
+            }
+        });
+    }
+
+    // Initial render
+    render(root);
+
+    // Fit to screen initially
+    fitView(false);
+
+    function fitView(animate = true) {
+        const bounds = g.node().getBBox();
+        const fullW = bounds.width || 1;
+        const fullH = bounds.height || 1;
+        const midX = bounds.x + fullW / 2;
+        const midY = bounds.y + fullH / 2;
+        const scale = 0.85 / Math.max(fullW / W, fullH / H);
+        const tx = W / 2 - scale * midX;
+        const ty = H / 2 - scale * midY;
+        const transform = d3.zoomIdentity.translate(tx, ty).scale(scale);
+        if (animate) {
+            svg.transition().duration(600).call(zoomBehavior.transform, transform);
+        } else {
+            svg.call(zoomBehavior.transform, transform);
+        }
+    }
+
+    // ── Controls ──
+    document.getElementById("zoom-in").addEventListener("click", () => {
+        svg.transition().duration(300).call(zoomBehavior.scaleBy, 1.3);
+    });
+    document.getElementById("zoom-out").addEventListener("click", () => {
+        svg.transition().duration(300).call(zoomBehavior.scaleBy, 0.7);
+    });
+    document.getElementById("zoom-fit").addEventListener("click", () => fitView(true));
+    document.getElementById("expand-all").addEventListener("click", () => {
+        expandAll(root);
+        render(root);
+        setTimeout(() => fitView(true), duration + 50);
+    });
+
+    // Resize handler
+    window.addEventListener("resize", () => {
+        W = container.clientWidth;
+        H = container.clientHeight;
+        svg.attr("width", W).attr("height", H);
+    });
+
+})();
+
+</script>
+</body>
+</html>

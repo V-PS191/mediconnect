@@ -146,12 +146,12 @@ const UserPanel: React.FC<UserPanelProps> = ({
   };
 
   const menuItems = [
-    { id: 'book', label: 'Book Appointment', icon: '📅' },
-    { id: 'upcoming', label: 'Upcoming Appointments', icon: '⏳' },
     { id: 'history', label: 'Appointment History', icon: '📜' },
-    { id: 'wallet', label: 'My Wallet', icon: '💳' },
+    { id: 'book', label: 'Book Appointment', icon: '📅' },
     { id: 'prescriptions', label: 'My Prescriptions', icon: '💊' },
     { id: 'profile', label: 'My Profile', icon: '👤' },
+    { id: 'wallet', label: 'My Wallet', icon: '💳' },
+    { id: 'upcoming', label: 'Upcoming Appointments', icon: '⏳' },
   ];
 
   const renderAppointmentTable = (apts: Appointment[], emptyMessage: string) => (
