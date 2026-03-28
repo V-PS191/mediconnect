@@ -19,6 +19,8 @@ export interface Doctor {
   password?: string;
   specialization: string;
   phone: string;
+  address?: string;
+  offDays?: number[];
   appointmentFee: number;
   shiftStart: string;
   shiftEnd: string;

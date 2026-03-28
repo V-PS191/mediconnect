@@ -66,6 +66,9 @@ const LoginForm: React.FC<LoginFormProps> = ({ role, onLogin, onBack, users, doc
       }
       
       const foundUser = await response.json();
+      if (foundUser._id && !foundUser.id) {
+        foundUser.id = foundUser._id;
+      }
       onLogin(role, foundUser);
     } catch (err) {
       console.error("Login API failed:", err);

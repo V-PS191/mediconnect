@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { User, Doctor, Appointment, PaymentRequest, Role, Transaction } from '../types';
 import { initialUsers, initialDoctors, initialAppointments, initialPaymentRequests, initialTransactions } from '../data/initialData';
 
@@ -10,6 +10,35 @@ export const useAppState = () => {
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
   const [currentUser, setCurrentUser] = useState<User | Doctor | null>(null);
   const [currentRole, setCurrentRole] = useState<Role | null>(null);
+
+  useEffect(() => {
+    const fetchDatabaseData = async () => {
+      try {
+        const [usersRes, doctorsRes] = await Promise.all([
+          fetch('http://localhost:5000/api/users'),
+          fetch('http://localhost:5000/api/doctors')
+        ]);
+        
+        if (usersRes.ok) {
+          const dbUsers = await usersRes.json();
+          // Merge database users into UI state, ensuring _id is mapped to id
+          const formattedUsers = dbUsers.map((u: any) => ({ ...u, id: u._id || u.id }));
+          setUsers(prev => [...prev.filter(pu => !formattedUsers.find((dbu: any) => dbu.username === pu.username)), ...formattedUsers]);
+        }
+        
+        if (doctorsRes.ok) {
+          const dbDoctors = await doctorsRes.json();
+          // Merge database doctors into UI state, ensuring _id is mapped to id
+          const formattedDoctors = dbDoctors.map((d: any) => ({ ...d, id: d._id || d.id }));
+          setDoctors(prev => [...prev.filter(pd => !formattedDoctors.find((dbd: any) => dbd.username === pd.username)), ...formattedDoctors]);
+        }
+      } catch (err) {
+        console.error("Failed to connect to backend MongoDB", err);
+      }
+    };
+
+    fetchDatabaseData();
+  }, []);
 
   const login = (role: Role, user: User | Doctor) => {
     setCurrentUser(user);

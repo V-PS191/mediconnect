@@ -61,13 +61,20 @@ const UserPanel: React.FC<UserPanelProps> = ({
 
   // Get selected doctor for live fee display
   const selectedDoctor = bookingData.doctorId
-    ? doctors.find(d => d.id === parseInt(bookingData.doctorId))
+    ? doctors.find(d => String(d.id) === bookingData.doctorId)
     : null;
 
   // Generate available time slots based on selected date and doctor
   const getAvailableTimeSlots = () => {
     if (!bookingData.date || !bookingData.doctorId) return [];
     
+    if (selectedDoctor && selectedDoctor.offDays) {
+      const dateObj = new Date(`${bookingData.date}T12:00:00`);
+      if (selectedDoctor.offDays.includes(dateObj.getDay())) {
+        return [];
+      }
+    }
+
     // All possible slots from 09:00 to 17:00 at 15-min intervals
     const allSlots = [];
     for (let hour = 9; hour <= 17; hour++) {
@@ -86,7 +93,7 @@ const UserPanel: React.FC<UserPanelProps> = ({
 
     // Slots already booked for the selected doctor on this date
     const doctorBookedTimes = appointments
-      .filter(a => a.doctorId === parseInt(bookingData.doctorId) && a.date === bookingData.date)
+      .filter(a => String(a.doctorId) === bookingData.doctorId && a.date === bookingData.date)
       .map(a => a.time);
 
     return allSlots.filter(slot => !userBookedTimes.includes(slot) && !doctorBookedTimes.includes(slot));
@@ -95,7 +102,7 @@ const UserPanel: React.FC<UserPanelProps> = ({
   const handleBookSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setBookingError(null);
-    const doctor = doctors.find(d => d.id === parseInt(bookingData.doctorId));
+    const doctor = doctors.find(d => String(d.id) === bookingData.doctorId);
     if (!doctor) return;
 
     if (user.walletBalance < doctor.appointmentFee) {
@@ -330,6 +337,16 @@ const UserPanel: React.FC<UserPanelProps> = ({
                     <span className="text-amber-500 text-2xl">💰</span>
                     <p className="text-amber-700 text-sm">
                       <span className="font-bold block mb-1">Low Balance</span> Doctor fee is ₹{selectedDoctor.appointmentFee.toFixed(2)} but your wallet has ₹{user.walletBalance.toFixed(2)}. Add money to proceed.
+                    </p>
+                  </div>
+                )}
+
+                {/* Off Days Warning */}
+                {selectedDoctor && bookingData.date && selectedDoctor.offDays?.includes(new Date(`${bookingData.date}T12:00:00`).getDay()) && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3">
+                    <span className="text-red-500 text-2xl">🚫</span>
+                    <p className="text-red-700 text-sm">
+                      <span className="font-bold block mb-1">Doctor Unavailable</span> Dr. {selectedDoctor.name.split(' ')[0]} is off on this day. Please select another date.
                     </p>
                   </div>
                 )}

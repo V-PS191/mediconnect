@@ -24,7 +24,8 @@ const SignupForm: React.FC<SignupFormProps> = ({ role, onSignup, onSignupDoctor,
     shiftStart: '09:00',
     shiftEnd: '17:00',
     lunchStart: '13:00',
-    lunchEnd: '14:00'
+    lunchEnd: '14:00',
+    offDays: [] as number[],
   });
 
   const [otpStep, setOtpStep] = useState(false);
@@ -113,6 +114,10 @@ const SignupForm: React.FC<SignupFormProps> = ({ role, onSignup, onSignupDoctor,
         }
         
         const data = await response.json();
+        if (data._id && !data.id) {
+          data.id = data._id;
+        }
+
         if (isDoctor) {
           onSignupDoctor(data);
         } else {
@@ -136,7 +141,9 @@ const SignupForm: React.FC<SignupFormProps> = ({ role, onSignup, onSignupDoctor,
         shiftStart: formData.shiftStart,
         shiftEnd: formData.shiftEnd,
         lunchStart: formData.lunchStart,
-        lunchEnd: formData.lunchEnd
+        lunchEnd: formData.lunchEnd,
+        address: formData.address,
+        offDays: formData.offDays
       };
       
       registerUser({ ...newDoctor, role: 'doctor' }, true);
@@ -157,6 +164,15 @@ const SignupForm: React.FC<SignupFormProps> = ({ role, onSignup, onSignupDoctor,
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleOffDayChange = (day: number) => {
+    setFormData(prev => {
+      const offDays = prev.offDays.includes(day)
+        ? prev.offDays.filter(d => d !== day)
+        : [...prev.offDays, day];
+      return { ...prev, offDays };
+    });
   };
 
   return (
@@ -213,7 +229,7 @@ const SignupForm: React.FC<SignupFormProps> = ({ role, onSignup, onSignupDoctor,
               </label>
             </div>
 
-            {role === 'user' && (
+            {role !== 'admin' && (
               <div>
                 <div className="flex justify-between items-end mb-1 px-3">
                    <button type="button" onClick={handleGetLocation} className={`text-xs font-bold flex items-center gap-1 transition-colors ${isLocating ? 'text-gray-400' : 'text-blue-600 hover:text-blue-800'}`} disabled={isLocating}>
@@ -233,6 +249,22 @@ const SignupForm: React.FC<SignupFormProps> = ({ role, onSignup, onSignupDoctor,
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex items-center gap-2"><span className="text-xs text-gray-400 font-medium">Shift Start</span><input type="time" name="shiftStart" value={formData.shiftStart} onChange={handleChange} className="w-full px-4 py-2 rounded-full border border-gray-200 text-sm text-gray-600" required /></div>
                   <div className="flex items-center gap-2"><span className="text-xs text-gray-400 font-medium">Shift End</span><input type="time" name="shiftEnd" value={formData.shiftEnd} onChange={handleChange} className="w-full px-4 py-2 rounded-full border border-gray-200 text-sm text-gray-600" required /></div>
+                </div>
+                <div className="pt-2 pl-1">
+                  <p className="text-xs font-medium text-gray-500 mb-2">Select Off Days</p>
+                  <div className="flex flex-wrap gap-4">
+                    {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => (
+                      <label key={day} className="flex items-center gap-1.5 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.offDays.includes(idx)}
+                          onChange={() => handleOffDayChange(idx)}
+                          className="w-3.5 h-3.5 text-blue-600 focus:ring-blue-500 rounded border-gray-300 cursor-pointer"
+                        />
+                        <span className="text-xs text-gray-600 font-medium">{day}</span>
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </>
             )}

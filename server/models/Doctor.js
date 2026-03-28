@@ -7,6 +7,8 @@ const DoctorSchema = new mongoose.Schema({
   role: { type: String, default: 'doctor' },
   specialization: { type: String, required: true },
   phone: { type: String },
+  address: { type: String },
+  offDays: { type: [Number], default: [] },
   appointmentFee: { type: Number, required: true },
   shiftStart: { type: String, required: true },
   shiftEnd: { type: String, required: true },
@@ -17,3 +19,4 @@ const DoctorSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 module.exports = mongoose.model('Doctor', DoctorSchema);
+
