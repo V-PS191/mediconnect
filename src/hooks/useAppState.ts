@@ -8,29 +8,54 @@ export const useAppState = () => {
   const [appointments, setAppointments] = useState<Appointment[]>(initialAppointments);
   const [paymentRequests, setPaymentRequests] = useState<PaymentRequest[]>(initialPaymentRequests);
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
-  const [currentUser, setCurrentUser] = useState<User | Doctor | null>(null);
-  const [currentRole, setCurrentRole] = useState<Role | null>(null);
+  const [currentUser, setCurrentUser] = useState<User | Doctor | null>(() => {
+    const saved = localStorage.getItem('currentUser');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [currentRole, setCurrentRole] = useState<Role | null>(() => {
+    const saved = localStorage.getItem('currentRole');
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  useEffect(() => {
+    if (currentUser !== null) {
+      localStorage.setItem('currentUser', JSON.stringify(currentUser));
+    } else {
+      localStorage.removeItem('currentUser');
+    }
+
+    if (currentRole !== null) {
+      localStorage.setItem('currentRole', JSON.stringify(currentRole));
+    } else {
+      localStorage.removeItem('currentRole');
+    }
+  }, [currentUser, currentRole]);
 
   useEffect(() => {
     const fetchDatabaseData = async () => {
       try {
-        const [usersRes, doctorsRes] = await Promise.all([
+        const [usersRes, doctorsRes, appointmentsRes] = await Promise.all([
           fetch('http://localhost:5000/api/users'),
-          fetch('http://localhost:5000/api/doctors')
+          fetch('http://localhost:5000/api/doctors'),
+          fetch('http://localhost:5000/api/appointments')
         ]);
         
         if (usersRes.ok) {
           const dbUsers = await usersRes.json();
-          // Merge database users into UI state, ensuring _id is mapped to id
           const formattedUsers = dbUsers.map((u: any) => ({ ...u, id: u._id || u.id }));
           setUsers(prev => [...prev.filter(pu => !formattedUsers.find((dbu: any) => dbu.username === pu.username)), ...formattedUsers]);
         }
         
         if (doctorsRes.ok) {
           const dbDoctors = await doctorsRes.json();
-          // Merge database doctors into UI state, ensuring _id is mapped to id
           const formattedDoctors = dbDoctors.map((d: any) => ({ ...d, id: d._id || d.id }));
           setDoctors(prev => [...prev.filter(pd => !formattedDoctors.find((dbd: any) => dbd.username === pd.username)), ...formattedDoctors]);
+        }
+        
+        if (appointmentsRes.ok) {
+          const dbAppointments = await appointmentsRes.json();
+          const formattedAppointments = dbAppointments.map((a: any) => ({ ...a, id: a._id || a.id }));
+          setAppointments(prev => [...prev.filter(pa => !formattedAppointments.find((dba: any) => (dba._id === pa.id) || (dba.id === pa.id))), ...formattedAppointments]);
         }
       } catch (err) {
         console.error("Failed to connect to backend MongoDB", err);
@@ -166,17 +191,59 @@ export const useAppState = () => {
     setAppointments(appointments.map(a => a.id === aptId ? { ...a, date: newDate, time: newTime, status: 'rescheduled' } : a));
   };
 
-  const swapAppointments = (aptId1: number, aptId2: number) => {
-    const apt1 = appointments.find(a => a.id === aptId1);
-    const apt2 = appointments.find(a => a.id === aptId2);
+  const delayAppointment = (aptId: number) => {
+    const aptToDelay = appointments.find(a => a.id === aptId);
+    if (!aptToDelay) return;
+
+    const doctorId = aptToDelay.doctorId;
     
-    if (apt1 && apt2) {
-      setAppointments(appointments.map(a => {
-        if (a.id === aptId1) return { ...a, date: apt2.date, time: apt2.time, status: 'rescheduled' };
-        if (a.id === aptId2) return { ...a, date: apt1.date, time: apt1.time, status: 'rescheduled' };
-        return a;
-      }));
+    // Get all upcoming appointments sorted by actual time slot
+    const upcomingForDoctor = appointments.filter(a => 
+      a.doctorId === doctorId && 
+      (a.status === 'confirmed' || a.status === 'pending' || a.status === 'rescheduled')
+    ).sort((a, b) => new Date(`${a.date} ${a.time}`).getTime() - new Date(`${b.date} ${b.time}`).getTime());
+
+    const currentIndex = upcomingForDoctor.findIndex(a => a.id === aptId);
+    // If appointment isn't found or is already the last in the list, we can't delay it further
+    if (currentIndex === -1 || currentIndex === upcomingForDoctor.length - 1) return;
+
+    // Find the NEXT appointment that HAS NOT been delayed
+    let swapTargetIndex = -1;
+    for (let i = currentIndex + 1; i < upcomingForDoctor.length; i++) {
+      if (!upcomingForDoctor[i].delayStamp) {
+        swapTargetIndex = i;
+        break;
+      }
     }
+
+    // If everyone below has already delayed, just swap with the immediate next one
+    if (swapTargetIndex === -1) {
+      swapTargetIndex = currentIndex + 1;
+    }
+
+    const targetApt = upcomingForDoctor[swapTargetIndex];
+
+    // Swap their time slots and mark the delayed one
+    setAppointments(appointments.map(a => {
+      if (a.id === aptToDelay.id) {
+        return { 
+          ...a, 
+          date: targetApt.date, 
+          time: targetApt.time, 
+          status: 'rescheduled', 
+          delayStamp: Date.now() 
+        };
+      }
+      if (a.id === targetApt.id) {
+        return { 
+          ...a, 
+          date: aptToDelay.date, 
+          time: aptToDelay.time, 
+          status: 'rescheduled' 
+        };
+      }
+      return a;
+    }));
   };
 
   const deleteUser = (userId: number) => {
@@ -204,7 +271,7 @@ export const useAppState = () => {
     rejectPayment,
     updateAppointmentStatus,
     modifyAppointment,
-    swapAppointments,
+    delayAppointment,
     deleteUser
   };
 };

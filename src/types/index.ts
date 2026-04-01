@@ -38,6 +38,7 @@ export interface Appointment {
   reason: string;
   duration: number;
   notes: string;
+  delayStamp?: number;
 }
 
 export interface PaymentRequest {

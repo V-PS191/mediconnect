@@ -8,7 +8,7 @@ interface DoctorPanelProps {
   users: User[];
   onUpdateStatus: (aptId: number, status: Appointment['status']) => void;
   onModifyAppointment: (aptId: number, newDate: string, newTime: string) => void;
-  onSwapAppointments: (aptId1: number, aptId2: number) => void;
+  onDelayAppointment: (aptId: number) => void;
 }
 
 const DoctorPanel: React.FC<DoctorPanelProps> = ({
@@ -17,7 +17,7 @@ const DoctorPanel: React.FC<DoctorPanelProps> = ({
   users,
   onUpdateStatus,
   onModifyAppointment,
-  onSwapAppointments
+  onDelayAppointment
 }) => {
   const [modifyingApt, setModifyingApt] = useState<number | null>(null);
   const [modData, setModData] = useState({ date: '', time: '' });
@@ -113,9 +113,8 @@ const DoctorPanel: React.FC<DoctorPanelProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {upcomingApts.map((apt, index) => {
+              {upcomingApts.map((apt) => {
                 const user = users.find(u => u.id === apt.userId);
-                const nextApt = upcomingApts[index + 1];
 
                 return (
                   <tr key={apt.id} className="hover:bg-gray-50/50 group transition-all">
@@ -160,11 +159,11 @@ const DoctorPanel: React.FC<DoctorPanelProps> = ({
                         >
                           Modify
                         </button>
-                        {nextApt && (
+                        {upcomingApts.length > 1 && (
                           <button 
-                            onClick={() => onSwapAppointments(apt.id, nextApt.id)}
+                            onClick={() => onDelayAppointment(apt.id)}
                             className="bg-amber-100 text-amber-700 px-2 py-1 rounded-md font-bold text-[10px] hover:bg-amber-200 transition-all flex items-center gap-1"
-                            title="Delayed: Swap with next patient"
+                            title="Delayed: Move down the queue"
                           >
                             Delay ⬇️
                           </button>

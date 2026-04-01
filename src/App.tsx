@@ -25,7 +25,7 @@ const App: React.FC = () => {
     approvePayment,
     rejectPayment,
     modifyAppointment,
-    swapAppointments,
+    delayAppointment,
     updateAppointmentStatus,
     deleteUser
   } = useAppState();
@@ -90,7 +90,7 @@ const App: React.FC = () => {
             users={users}
             onUpdateStatus={updateAppointmentStatus}
             onModifyAppointment={modifyAppointment}
-            onSwapAppointments={swapAppointments}
+            onDelayAppointment={delayAppointment}
           />
         )}
       </main>
