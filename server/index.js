@@ -1,6 +1,8 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const multer = require('multer');
+const path = require('path');
 require('dotenv').config({ path: '../.env' });
 
 const app = express();
@@ -9,6 +11,19 @@ const PORT = process.env.PORT || 5000;
 // Middleware
 app.use(cors());
 app.use(express.json());
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, 'uploads/');
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + path.extname(file.originalname));
+  }
+});
+const upload = multer({ storage: storage });
 
 // MongoDB Connection
 mongoose.connect(process.env.VITE_MONGODB_URI)
@@ -19,6 +34,7 @@ mongoose.connect(process.env.VITE_MONGODB_URI)
 const User = require('./models/User');
 const Doctor = require('./models/Doctor');
 const Appointment = require('./models/Appointment');
+const MedicalRecord = require('./models/MedicalRecord');
 const emailService = require('./utils/emailService');
 
 // Routes
@@ -163,6 +179,44 @@ app.patch('/api/appointments/:id', async (req, res) => {
     res.json(appointment);
   } catch (err) {
     res.status(400).json({ message: err.message });
+  }
+});
+
+// Medical Records
+app.get('/api/medical-records/:userId', async (req, res) => {
+  try {
+    const records = await MedicalRecord.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+    res.json(records);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+app.post('/api/medical-records', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    const { userId, title, doctorName, date } = req.body;
+    
+    // Construct the URL to access the file
+    // Assumes server is running on the same host, so a relative URL is returned
+    const fileUrl = `http://localhost:${PORT}/uploads/${req.file.filename}`;
+
+    const newRecord = new MedicalRecord({
+      userId,
+      title,
+      doctorName: doctorName || 'Self Uploaded',
+      date,
+      fileLabel: req.file.originalname,
+      fileUrl: fileUrl
+    });
+
+    await newRecord.save();
+    res.status(201).json(newRecord);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
   }
 });
 

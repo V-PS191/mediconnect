@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { User, Doctor, Appointment, PaymentRequest, Transaction } from '../../types';
 import { getRelativeDate } from '../../utils/dateUtils';
 
@@ -28,9 +28,22 @@ const UserPanel: React.FC<UserPanelProps> = ({
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [reportFile, setReportFile] = useState<File | null>(null);
 
-  const [prescriptions, setPrescriptions] = useState<{ id: number; title: string; date: string; fileLabel: string; doctorName: string }[]>([
-    { id: 1, title: 'Annual Blood Test Report', date: '2023-10-15', fileLabel: 'blood_test_23.pdf', doctorName: 'Dr. Sharma' }
-  ]);
+  const [prescriptions, setPrescriptions] = useState<{ _id?: string; id?: number; title: string; date: string; fileLabel: string; doctorName: string; fileUrl?: string }[]>([]);
+  
+  useEffect(() => {
+    const fetchRecords = async () => {
+      try {
+        const res = await fetch(`http://localhost:5000/api/medical-records/${user.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setPrescriptions(data);
+        }
+      } catch (err) {
+        console.error('Failed to fetch medical records', err);
+      }
+    };
+    fetchRecords();
+  }, [user.id]);
   const [prescriptionForm, setPrescriptionForm] = useState({ title: '', date: '', doctorName: '' });
   const [prescriptionFile, setPrescriptionFile] = useState<File | null>(null);
 
@@ -135,21 +148,41 @@ const UserPanel: React.FC<UserPanelProps> = ({
     setWalletData({ amount: '', utr: '' });
   };
 
-  const handleAddPrescription = (e: React.FormEvent) => {
+  const handleAddPrescription = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prescriptionForm.title || !prescriptionForm.date) return;
+    if (!prescriptionForm.title || !prescriptionForm.date || !prescriptionFile) {
+      alert('Please fill out all fields and attach a file.');
+      return;
+    }
     
-    const newRecord = {
-      id: Date.now(),
-      title: prescriptionForm.title,
-      doctorName: prescriptionForm.doctorName || 'Self Uploaded',
-      date: prescriptionForm.date,
-      fileLabel: prescriptionFile ? prescriptionFile.name : 'No file attached'
-    };
-    
-    setPrescriptions([newRecord, ...prescriptions]);
-    setPrescriptionForm({ title: '', date: '', doctorName: '' });
-    setPrescriptionFile(null);
+    const formData = new FormData();
+    formData.append('userId', String(user.id));
+    formData.append('title', prescriptionForm.title);
+    formData.append('doctorName', prescriptionForm.doctorName || 'Self Uploaded');
+    formData.append('date', prescriptionForm.date);
+    formData.append('file', prescriptionFile);
+
+    try {
+      const response = await fetch('http://localhost:5000/api/medical-records', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const savedRecord = await response.json();
+        setPrescriptions([savedRecord, ...prescriptions]);
+        setPrescriptionForm({ title: '', date: '', doctorName: '' });
+        setPrescriptionFile(null);
+        const fileInput = document.getElementById('prescriptionFileInput') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+      } else {
+        const errData = await response.json();
+        alert(`Failed to save record: ${errData.message}`);
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error connecting to server.');
+    }
   };
 
   const menuItems = [
@@ -646,7 +679,7 @@ const UserPanel: React.FC<UserPanelProps> = ({
                   </div>
                 ) : (
                   prescriptions.map(record => (
-                    <div key={record.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all gap-4">
+                    <div key={record._id || record.id} className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-5 bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all gap-4">
                       <div className="flex items-start gap-4">
                         <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-500 text-2xl shrink-0">
                           📄
@@ -664,7 +697,16 @@ const UserPanel: React.FC<UserPanelProps> = ({
                         <span className="text-xs font-mono bg-gray-100 text-gray-500 px-3 py-1 rounded-lg truncate max-w-[200px]">
                           {record.fileLabel}
                         </span>
-                        <button className="text-sm font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-xl transition-colors w-full sm:w-auto text-center cursor-pointer">
+                        <button 
+                          onClick={() => {
+                            if (record.fileUrl) {
+                              window.open(record.fileUrl, '_blank');
+                            } else {
+                              alert('No file available for this record.');
+                            }
+                          }}
+                          className="text-sm font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-4 py-2 rounded-xl transition-colors w-full sm:w-auto text-center cursor-pointer"
+                        >
                           View File
                         </button>
                       </div>
