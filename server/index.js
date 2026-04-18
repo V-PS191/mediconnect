@@ -26,9 +26,13 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // MongoDB Connection
-mongoose.connect(process.env.VITE_MONGODB_URI)
-  .then(() => console.log('MongoDB connected successfully'))
-  .catch(err => console.error('MongoDB connection error:', err));
+if (process.env.VITE_MONGODB_URI) {
+  mongoose.connect(process.env.VITE_MONGODB_URI)
+    .then(() => console.log('MongoDB connected successfully'))
+    .catch(err => console.error('MongoDB connection error:', err));
+} else {
+  console.error('CRITICAL ERROR: VITE_MONGODB_URI is not defined in environment variables! Database will not work.');
+}
 
 // Models
 const User = require('./models/User');
@@ -38,6 +42,14 @@ const MedicalRecord = require('./models/MedicalRecord');
 const emailService = require('./utils/emailService');
 
 // Routes
+app.get('/api/status', (req, res) => {
+  res.json({
+    status: 'ok',
+    mongodbConfigured: !!process.env.VITE_MONGODB_URI,
+    environmentKeys: Object.keys(process.env)
+  });
+});
+
 // Authentication (Simplified for now)
 app.post('/api/auth/register', async (req, res) => {
   try {
