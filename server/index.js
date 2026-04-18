@@ -25,14 +25,28 @@ const storage = multer.diskStorage({
 });
 const upload = multer({ storage: storage });
 
-// MongoDB Connection
-if (process.env.VITE_MONGODB_URI) {
-  mongoose.connect(process.env.VITE_MONGODB_URI)
-    .then(() => console.log('MongoDB connected successfully'))
-    .catch(err => console.error('MongoDB connection error:', err));
-} else {
-  console.error('CRITICAL ERROR: VITE_MONGODB_URI is not defined in environment variables! Database will not work.');
-}
+// Serverless Optimized MongoDB Connection Manager
+let isConnected = false;
+const connectDB = async () => {
+  if (isConnected) return;
+  if (!process.env.VITE_MONGODB_URI) {
+    console.error('CRITICAL ERROR: VITE_MONGODB_URI is not defined in environment variables! Database will not work.');
+    return;
+  }
+  try {
+    const db = await mongoose.connect(process.env.VITE_MONGODB_URI);
+    isConnected = db.connections[0].readyState;
+    console.log('MongoDB connected successfully securely via Serverless cache');
+  } catch (err) {
+    console.error('MongoDB connection error:', err);
+  }
+};
+
+// Enforce DB connection on every Vercel request invocation
+app.use(async (req, res, next) => {
+  await connectDB();
+  next();
+});
 
 // Models
 const User = require('./models/User');
