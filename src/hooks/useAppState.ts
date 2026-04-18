@@ -35,9 +35,9 @@ export const useAppState = () => {
     const fetchDatabaseData = async () => {
       try {
         const [usersRes, doctorsRes, appointmentsRes] = await Promise.all([
-          fetch('http://localhost:5000/api/users'),
-          fetch('http://localhost:5000/api/doctors'),
-          fetch('http://localhost:5000/api/appointments')
+          fetch('/api/users'),
+          fetch('/api/doctors'),
+          fetch('/api/appointments')
         ]);
         
         if (usersRes.ok) {
@@ -95,7 +95,7 @@ export const useAppState = () => {
         doctorObj: doctor || doctors.find(d => d.id === appointment.doctorId)
       };
 
-      await fetch('http://localhost:5000/api/appointments', {
+      await fetch('/api/appointments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(backendPayload)

@@ -33,7 +33,7 @@ const UserPanel: React.FC<UserPanelProps> = ({
   useEffect(() => {
     const fetchRecords = async () => {
       try {
-        const res = await fetch(`http://localhost:5000/api/medical-records/${user.id}`);
+        const res = await fetch(`/api/medical-records/${user.id}`);
         if (res.ok) {
           const data = await res.json();
           setPrescriptions(data);
@@ -163,7 +163,7 @@ const UserPanel: React.FC<UserPanelProps> = ({
     formData.append('file', prescriptionFile);
 
     try {
-      const response = await fetch('http://localhost:5000/api/medical-records', {
+      const response = await fetch('/api/medical-records', {
         method: 'POST',
         body: formData,
       });

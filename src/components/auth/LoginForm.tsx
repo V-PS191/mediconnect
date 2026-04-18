@@ -40,7 +40,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ role, onLogin, onBack, users, doc
     }
 
     try {
-      const response = await fetch('http://localhost:5000/api/auth/login', {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password, role })
@@ -142,7 +142,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ role, onLogin, onBack, users, doc
           e.preventDefault();
           if (newPassword !== confirmNewPassword) { setForgotError('Passwords do not match'); return; }
           try {
-            const res = await fetch('http://localhost:5000/api/auth/reset-password', {
+            const res = await fetch('/api/auth/reset-password', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ username, newPassword, role })
