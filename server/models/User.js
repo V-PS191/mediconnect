@@ -8,6 +8,7 @@ const UserSchema = new mongoose.Schema({
   email: { type: String },
   phone: { type: String },
   walletBalance: { type: Number, default: 0 },
+  address: { type: String },
   memberSince: { type: String, default: () => new Date().getFullYear().toString() }
 }, { timestamps: true });
 
