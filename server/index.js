@@ -37,10 +37,10 @@ const connectDB = async () => {
     return cached.conn;
   }
 
-  const uri = process.env.VITE_MONGODB_URI;
+  const uri = process.env.MONGODB_URI || process.env.VITE_MONGODB_URI;
   if (!uri) {
-    console.error('CRITICAL ERROR: VITE_MONGODB_URI is not defined in environment variables!');
-    throw new Error('VITE_MONGODB_URI is not defined in environment variables');
+    console.error('CRITICAL ERROR: MONGODB_URI / VITE_MONGODB_URI is not defined in environment variables!');
+    throw new Error('MONGODB_URI is not defined in environment variables');
   }
 
   if (!cached.promise) {
@@ -102,7 +102,7 @@ app.get('/api/status', async (req, res) => {
     dbError = e.message;
   }
 
-  const rawUri = process.env.VITE_MONGODB_URI || '';
+  const rawUri = process.env.MONGODB_URI || process.env.VITE_MONGODB_URI || '';
   const maskedUri = rawUri ? rawUri.replace(/:([^:@]+)@/, ':****@') : 'NOT_SET';
 
   res.json({
