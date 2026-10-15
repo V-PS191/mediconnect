@@ -3,7 +3,8 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const multer = require('multer');
 const path = require('path');
-require('dotenv').config({ path: '../.env' });
+// Load .env relative to this file so it works in local dev
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -26,26 +27,60 @@ const storage = multer.diskStorage({
 const upload = multer({ storage: storage });
 
 // Serverless Optimized MongoDB Connection Manager
-let isConnected = false;
+let cached = global.mongoose;
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
+
 const connectDB = async () => {
-  if (isConnected) return;
-  if (!process.env.VITE_MONGODB_URI) {
-    console.error('CRITICAL ERROR: VITE_MONGODB_URI is not defined in environment variables! Database will not work.');
-    return;
+  if (cached.conn && mongoose.connection.readyState === 1) {
+    return cached.conn;
   }
+
+  const uri = process.env.VITE_MONGODB_URI;
+  if (!uri) {
+    console.error('CRITICAL ERROR: VITE_MONGODB_URI is not defined in environment variables!');
+    throw new Error('VITE_MONGODB_URI is not defined in environment variables');
+  }
+
+  if (!cached.promise) {
+    const opts = {
+      bufferCommands: false, // Prevents 10000ms buffering timeouts!
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 20000,
+    };
+    cached.promise = mongoose.connect(uri, opts).then((m) => {
+      console.log('MongoDB connected successfully securely via Serverless cache');
+      return m;
+    });
+  }
+
   try {
-    const db = await mongoose.connect(process.env.VITE_MONGODB_URI);
-    isConnected = db.connections[0].readyState;
-    console.log('MongoDB connected successfully securely via Serverless cache');
+    cached.conn = await cached.promise;
+    return cached.conn;
   } catch (err) {
+    cached.promise = null;
+    cached.conn = null;
     console.error('MongoDB connection error:', err);
+    throw err;
   }
 };
 
-// Enforce DB connection on every Vercel request invocation
+// Enforce DB connection on every Vercel request invocation (fails fast with clear message instead of 10s hang)
 app.use(async (req, res, next) => {
-  await connectDB();
-  next();
+  // Allow health check / status route without blocking
+  if (req.path === '/api/status') {
+    return next();
+  }
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    return res.status(503).json({
+      message: 'Database connection failed: ' + (err.message || 'Unknown error'),
+      details: 'Check Vercel VITE_MONGODB_URI and MongoDB Atlas Network Access.'
+    });
+  }
 });
 
 // Models
@@ -56,11 +91,29 @@ const MedicalRecord = require('./models/MedicalRecord');
 const emailService = require('./utils/emailService');
 
 // Routes
-app.get('/api/status', (req, res) => {
+app.get('/api/status', async (req, res) => {
+  let dbStatus = 'disconnected';
+  let dbError = null;
+  try {
+    await connectDB();
+    dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'connecting';
+  } catch (e) {
+    dbStatus = 'error';
+    dbError = e.message;
+  }
+
+  const rawUri = process.env.VITE_MONGODB_URI || '';
+  const maskedUri = rawUri ? rawUri.replace(/:([^:@]+)@/, ':****@') : 'NOT_SET';
+
   res.json({
     status: 'ok',
-    mongodbConfigured: !!process.env.VITE_MONGODB_URI,
-    environmentKeys: Object.keys(process.env)
+    database: {
+      status: dbStatus,
+      host: mongoose.connection.host || null,
+      name: mongoose.connection.name || null,
+      uri: maskedUri,
+      error: dbError
+    }
   });
 });
 
